@@ -12,6 +12,6 @@
 
 <br>
 
-<sub>Bangalore · India</sub>
+
 
 </div>
