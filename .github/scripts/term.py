@@ -20,23 +20,28 @@ GREEN, WHITE, GREY = "#7EE787", "#E6EDF3", "#7D8792"
 CYAN, GOLD, VIOLET = "#79C0FF", "#F2CC60", "#D2A8FF"
 AMBER, RED, DIM = "#E3A008", "#F8514A", "#4A525C"
 
-# (kind, text, colour, flicker, hold-after)
+YOU = "#FF4D4D"
+
+# out-lines may be a plain string, or a list of (text, colour, flicker)
+# segments positioned by character offset.
 SCRIPT = [
-    ("cmd", "whoami", WHITE, 0, 0.40),
-    ("out", "nikhil", GREY, 0, 0.30),
+    ("cmd", "w", WHITE, 0, 0.42),
+    ("out", [("USER    TTY       FROM      IDLE", DIM, 0)], None, 0, 0.20),
+    ("out", [("nikhil  console   -         12:04", GREY, 0)], None, 0, 0.26),
+    ("out", [("guest   ttys002   ", GREY, 0),
+             ("<you>", YOU, 1),
+             ("     00:00", GREY, 0)], None, 0, 1.45),
     ("gap", "", None, 0, 0),
-    ("cmd", "who", WHITE, 0, 0.45),
-    ("out", "nikhil    console    since tuesday", GREY, 0, 0.34),
-    ("out", "?         ttys001    since ????", AMBER, 1, 1.30),
+    ("cmd", "last guest", WHITE, 0, 0.48),
+    ("out", [("guest   ttys002   ", GREY, 0),
+             ("<you>", YOU, 1),
+             ("     still logged in", AMBER, 0)], None, 0, 1.35),
     ("gap", "", None, 0, 0),
-    ("cmd", "kill -9 ?", WHITE, 0, 0.70),
-    ("out", "kill: ?: no such process", GREY, 0, 1.05),
+    ("cmd", "kill -9 guest", WHITE, 0, 0.72),
+    ("out", [("kill: guest is not yours to end.", GREY, 0)], None, 0, 1.30),
     ("gap", "", None, 0, 0),
-    ("cmd", "ls /dev/thoughts", WHITE, 0, 0.45),
-    ("out", "racing   looping   3am", VIOLET, 0, 1.10),
-    ("gap", "", None, 0, 0),
-    ("cmd", "exit", WHITE, 0, 0.95),
-    ("out", "exit: you don't get to.", RED, 1, 3.00),
+    ("cmd", "whoami", WHITE, 0, 1.05),
+    ("out", [("that's the question, isn't it.", RED, 1)], None, 0, 3.10),
 ]
 
 TYPE = 0.052       # seconds per character
@@ -53,7 +58,8 @@ def build():
             t += 0.18
             events.append((kind, text, col, t, 0.0, flick))
             continue
-        dur = len(text) * TYPE if kind == "cmd" else 0.0
+        n = len(text) if isinstance(text, str) else sum(len(t) for t, _c, _f in text)
+        dur = n * TYPE if kind == "cmd" else 0.0
         events.append((kind, text, col, t, dur, flick))
         t += dur + hold
     total = t + TAIL
@@ -68,7 +74,8 @@ def render():
     events, total = build()
     rows = len(events)
     # size the window to its longest line instead of leaving dead space
-    widest = max((len(t) + (2 if k == "cmd" else 0)) for k, t, _c, _s, _d, _f in events)
+    widest = max(((len(t) + 2) if k == "cmd" else sum(len(x) for x, _c2, _f2 in t))
+                 for k, t, _c, _s, _d, _f in events)
     # a terminal that is taller than it is wide reads as a phone, not a shell
     W = max(600, int(PAD_X * 2 + widest * CW + 18))
     H = TOP + rows * LH + 34
@@ -132,14 +139,20 @@ def render():
                    ";".join("%.4f" % k for k in ckt), total,
                    s, (start + dur) / total, total))
         else:
-            inner = ('<text x="%.1f" y="%d" class="m" fill="%s" textLength="%.1f" '
-                     'lengthAdjust="spacing">%s</text>'
-                     % (px, y, col, full, esc(text)))
-            if flick:
-                inner = ('<g>%s<animate attributeName="opacity" '
-                         'values="1;0.15;1;0.55;1;1;0.3;1" dur="2.7s" '
-                         'repeatCount="indefinite" calcMode="discrete"/></g>'
-                         % inner)
+            segs = text if isinstance(text, list) else [(text, col, flick)]
+            parts, off = [], 0
+            for stext, scol, sfl in segs:
+                sw = len(stext) * CW
+                el = ('<text x="%.1f" y="%d" class="m" fill="%s" textLength="%.1f" '
+                      'lengthAdjust="spacing">%s</text>'
+                      % (px + off * CW, y, scol, sw, esc(stext)))
+                if sfl:
+                    el = ('<g>%s<animate attributeName="opacity" '
+                          'values="1;0.2;1;0.6;1;1;0.35;1;1" dur="2.3s" '
+                          'repeatCount="indefinite" calcMode="discrete"/></g>' % el)
+                parts.append(el)
+                off += len(stext)
+            inner = "".join(parts)
             body.append(
                 '<g opacity="0"><animate attributeName="opacity" '
                 'values="0;1;1;0;0" keyTimes="0;%.4f;%.4f;%.4f;1" dur="%.2fs" '
