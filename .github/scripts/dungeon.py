@@ -144,7 +144,9 @@ def step(st, direction, who):
         else:
             out.append("%s struck the %s for %d" % (who, k["name"], dmg))
     elif _blocked(st, nx, ny):
-        out.append("%s walked into stone" % who)
+        # bumping stone is a misread, not a move: no turn passes, nothing bites
+        st["turn"] -= 1
+        return ["%s walked into stone — the dungeon does not charge for that" % who]
     else:
         st["x"], st["y"] = nx, ny
         for it in list(st["items"]):
