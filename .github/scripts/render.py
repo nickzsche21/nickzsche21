@@ -142,128 +142,41 @@ def observer_block(st):
 
 def render_readme(v, st):
     repo = "%s/%s" % (USER, USER)
-    login = v["user"].get("login", USER)
     stamp = str(int(time.time()))
 
-    organs = v["organs"]
-    living = [o for o in organs if o["age"] <= 400][:6]
+    pool = [o for o in v["organs"] if o["name"].lower() != USER.lower()]
+    top = [o for o in pool if o["stars"] > 0][:1]
+    recent = [o for o in pool if o["age"] <= 60][:2]
+    picks, seen = [], set()
+    for o in top + recent:
+        if o["name"] not in seen:
+            seen.add(o["name"])
+            picks.append("[%s](%s)" % (o["name"], o["url"]))
+    work = " · ".join(picks)
 
-    # --- organ table -------------------------------------------------------
-    rows = []
-    for o in living:
-        if o["age"] <= 14:
-            state = "`ACTIVE`"
-        elif o["age"] <= 90:
-            state = "`WARM`"
-        elif o["age"] <= 180:
-            state = "`COOLING`"
-        else:
-            state = "`NECROTIC`"
-        desc = o["desc"] or "*no recorded function*"
-        if len(desc) > 84:
-            desc = desc[:81] + "..."
-        rows.append(
-            "| [`%s`](%s) | %s | %s | %d★ | %dd |"
-            % (o["name"], o["url"], desc, state, o["stars"], o["age"])
-        )
-    organ_table = "\n".join(rows)
-
-    cmds = [
-        ("OBSERVE", "observe", "Record a sighting. Costs you nothing.",
-         "Filed by an observer. The specimen registers that it was seen."),
-        ("FEED", "feed", "Raise the pulse. Delays decay by one cycle.",
-         "Nutrient introduced to the chamber."),
-        ("PROVOKE", "provoke", "Poke it. It remembers who poked it.",
-         "Stimulus applied. Response logged permanently."),
-        ("AUTOPSY", "autopsy", "Demand the full readout. It will comply.",
-         "Full biometric dump requested."),
-    ]
-    cmd_rows = []
-    for name, slug, why, body in cmds:
-        link = issue_link(repo, slug, "specimen: %s" % slug,
-                          "%s\n\n<!-- do not edit below -->\ncommand=%s" % (body, slug))
-        cmd_rows.append("| **[%s](%s)** | %s |" % (name, link, why))
-    cmd_table = "\n".join(cmd_rows)
-
-    prognosis = {
-        5: "Specimen is in uncontrolled growth. Containment is theoretical.",
-        4: "Specimen is metabolising. Output sustained. No intervention required.",
-        3: "Specimen is stable but not growing. Monitor.",
-        2: "Specimen has gone quiet. Tissue is cooling. Intervention advised.",
-        1: "Specimen is failing. Structural corruption spreading through the record.",
-        0: "No signal. The chamber is running on memory.",
-    }[v["stage"]]
+    cmds = []
+    for slug in ("observe", "feed", "provoke", "autopsy"):
+        link = issue_link(repo, slug, "specimen: %s" % slug, "command=%s" % slug)
+        cmds.append("[%s](%s)" % (slug.upper(), link))
 
     return f"""<div align="center">
 
 <img src="assets/specimen.svg?v={stamp}" alt="Specimen {v['uid']} — containment chamber" width="100%" />
 
-</div>
+**STAGE {v['stage']} — {v['stage_label']}**  ·  {v['silence']}d silent  ·  {v['streak']}d streak
 
-```
-OBSERVATION LOG — SUBJECT {login.upper()} — DESIGNATION {v['uid']}
-────────────────────────────────────────────────────────────────────────────
-This page is not written. It is measured.
-A machine reads the subject's activity every six hours and re-renders
-everything below from what it finds. Nothing here is a claim. It is a reading.
-```
+Building {work}
 
-<div align="center">
+<sub>This page is not written. It is measured every six hours and re-rendered.
+If it ever stops changing, so did he.</sub>
 
-```{organism(v)}```
+{" · ".join(cmds)}
 
-**STAGE {v['stage']} — {v['stage_label']}**
+<sub>touch the chamber — it answers, and it remembers you</sub>
 
 </div>
-
-```
-VITALS ─────────────────────────────────────────────────────────────────────
-
-  DECAY INDEX     {bar(v['decay'])}  {v['decay']:>3}%
-  INTEGRITY       {bar(v['integrity'])}  {v['integrity']:>3}%
-  PULSE           {v['bpm']} BPM        (beats at the true shipping rate)
-  SILENCE         {v['silence']} day(s) since the last recorded signal
-  STREAK          {v['streak']} day(s) of continuous output
-  VELOCITY        {v['velocity']} commits/day over 30 days
-
-METABOLISM (30d) ───────────────────────────────────────────────────────────
-
-  {sparkline(v['days'])}
-  {v['c7']} events / 7d      {v['c30']} events / 30d      {v['total_year']} events / 52w
-
-PROGNOSIS ──────────────────────────────────────────────────────────────────
-
-  {prognosis}
-```
-
-## ORGAN SYSTEMS
-
-Every repository is tissue. It is either being fed or it is rotting, and the
-table says which. `{v['living']}` living, `{v['necrotic']}` necrotic, `{v['stars']}`★ accumulated.
-
-| ORGAN | FUNCTION | STATE | MASS | LAST PERFUSION |
-|:--|:--|:--|--:|--:|
-{organ_table}
-
-## INTERACT WITH THE SPECIMEN
-
-The chamber accepts input from anyone. Open an issue and a machine answers —
-it updates the readout, replies in your voice, and writes you into the log
-below permanently. No account required beyond the one you already have.
-
-| COMMAND | EFFECT |
-|:--|:--|
-{cmd_table}
 
 {observer_block(st)}
-
-```
-────────────────────────────────────────────────────────────────────────────
-The subject is a builder in India. He is evolving. That is the whole bio;
-the rest of this page is evidence. Last observation {v['stamp']}.
-Re-rendered automatically. If this page ever stops changing, he stopped.
-────────────────────────────────────────────────────────────────────────────
-```
 """
 
 
