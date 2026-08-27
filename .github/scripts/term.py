@@ -63,8 +63,10 @@ def esc(s):
 
 def render():
     events, total = build()
-    rows = len([e for e in events])
-    W = 760
+    rows = len(events)
+    # size the window to its longest line instead of leaving dead space
+    widest = max((len(t) + (2 if k == "cmd" else 0)) for k, t, _c, _s, _d in events)
+    W = int(PAD_X * 2 + widest * CW + 18)
     H = TOP + rows * LH + 34
 
     body, clips = [], []

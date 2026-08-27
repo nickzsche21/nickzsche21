@@ -1,10 +1,6 @@
 <div align="center">
 
-<img src="assets/route.svg" alt="Route 1 — a pixel route that never ends" width="100%" />
-
-### builder, evolving.
-
-Bangalore · India
+<img src="assets/term.svg" alt="A terminal that types itself" width="620" />
 
 </div>
 
@@ -20,7 +16,6 @@ Bangalore · India
 
 <br>
 
-<sub>Every sprite above is hand-drawn pixel by pixel in code — no images, no sprite rips.
-Two-frame walk cycles, three parallax bands, and two of them can't decide what they are.</sub>
+<sub>Bangalore · India</sub>
 
 </div>
