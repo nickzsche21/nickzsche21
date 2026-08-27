@@ -8,8 +8,8 @@ the runners bob in place with alternating legs. No JavaScript, no scheduler.
 """
 import random
 
-W, H = 900, 270
-GROUND = 205
+W, H = 900, 250
+GROUND = 196
 
 
 def bob(dur, phase, lift=5):
@@ -83,13 +83,13 @@ def charmander(dur, phase):
     O, D, C = "#F0894A", "#D2703A", "#FBD9A5"
     return f'''<g>{bob(dur, phase)}
   <g>
-    <path d="M 18,-26 q 22,-4 26,-22" stroke="{O}" stroke-width="9" fill="none"
+    <path d="M 16,-26 q 24,-2 26,-24" stroke="{O}" stroke-width="10" fill="none"
           stroke-linecap="round"/>
     <g>
-      <path d="M 44,-50 q 9,-9 3,-19 q 10,10 3,22 Z" fill="#FF9B3D"/>
-      <path d="M 45,-50 q 5,-6 2,-12 q 6,7 2,14 Z" fill="#FFDA5E"/>
+      <path d="M 42,-52 q 10,-10 3,-21 q 12,11 4,24 Z" fill="#FF9B3D"/>
+      <path d="M 42,-52 q 6,-7 2,-13 q 7,8 2,15 Z" fill="#FFDA5E"/>
       <animateTransform attributeName="transform" type="rotate"
-        values="-9 44 -46; 9 44 -46; -9 44 -46" dur="0.9s" repeatCount="indefinite"/>
+        values="-10 42 -50; 10 42 -50; -10 42 -50" dur="0.9s" repeatCount="indefinite"/>
     </g>
     {legs(dur, phase, D)}
     <ellipse cx="0" cy="-28" rx="17" ry="18" fill="{O}"/>
@@ -127,10 +127,13 @@ def bulbasaur(dur, phase):
     return f'''<g>{bob(dur, phase)}
   <g>
     {legs(dur, phase, D)}
-    <ellipse cx="-4" cy="-30" rx="20" ry="17" fill="{G}"/>
-    <circle cx="-12" cy="-44" r="13" fill="{BULB}"/>
-    <path d="M -20,-50 q 8,-9 16,-2" stroke="#4E8C68" stroke-width="2" fill="none"/>
-    <ellipse cx="-14" cy="-33" rx="7" ry="4" fill="#6FAF86" opacity="0.6"/>
+    <ellipse cx="-4" cy="-28" rx="21" ry="17" fill="{G}"/>
+    <ellipse cx="-13" cy="-47" rx="15" ry="14" fill="#5FA46B"/>
+    <ellipse cx="-13" cy="-50" rx="15" ry="11" fill="{BULB}"/>
+    <path d="M -28,-50 q 15,-8 30,0" stroke="#3F7A55" stroke-width="1.8" fill="none"/>
+    <path d="M -13,-61 v 9 M -22,-57 l 5,6 M -4,-57 l -5,6"
+          stroke="#3F7A55" stroke-width="1.8" stroke-linecap="round"/>
+    <ellipse cx="-8" cy="-24" rx="7" ry="4" fill="#79BC90" opacity="0.55"/>
     <ellipse cx="8" cy="-46" rx="16" ry="14" fill="{G}"/>
     {eye(4, -50, 4.2)}{eye(17, -50, 4.2)}
     <path d="M 6,-40 q 7,4 13,0" stroke="#4E8C68" stroke-width="1.6" fill="none"
@@ -181,15 +184,15 @@ def psyduck(dur, phase):
 
 
 # --------------------------------------------------------------- the scenery
-def hills(seed, col, base, amp, step):
+def hills(seed, col, base, amp, segments):
+    """Periodic silhouette: the right edge repeats the left, so copies butt
+    together with no step. The seam was visible until this closed the loop."""
     rnd = random.Random(seed)
-    pts = []
-    x = -40
-    while x < W + 120:
-        pts.append("%d,%d" % (x, base - rnd.randint(0, amp)))
-        x += step
-    return ('<polygon points="-40,%d %s %d,%d" fill="%s"/>'
-            % (H, " ".join(pts), W + 120, H, col))
+    hs = [base - rnd.randint(0, amp) for _ in range(segments)]
+    hs.append(hs[0])
+    pts = ["%.1f,%d" % (W * i / float(segments), h) for i, h in enumerate(hs)]
+    return ('<polygon points="0,%d %s %d,%d" fill="%s"/>'
+            % (H, " ".join(pts), W, H, col))
 
 
 def clouds(seed):
@@ -233,12 +236,12 @@ def grass(seed):
 
 def render():
     cast = [
-        (pikachu, 150, 1.0, 0.52, 0.00),
-        (charmander, 300, 0.88, 0.56, 0.14),
-        (squirtle, 430, 0.86, 0.54, 0.27),
-        (bulbasaur, 560, 0.86, 0.58, 0.09),
-        (jigglypuff, 690, 0.78, 0.50, 0.33),
-        (psyduck, 810, 0.84, 0.60, 0.21),
+        (pikachu, 148, 1.16, 0.52, 0.00),
+        (charmander, 302, 1.02, 0.56, 0.14),
+        (squirtle, 438, 1.00, 0.54, 0.27),
+        (bulbasaur, 572, 1.00, 0.58, 0.09),
+        (jigglypuff, 700, 0.92, 0.50, 0.33),
+        (psyduck, 820, 0.98, 0.60, 0.21),
     ]
     runners = []
     for fn, x, sc, dur, ph in cast:
@@ -264,8 +267,8 @@ def render():
   <circle cx="792" cy="52" r="44" fill="#FFE973" opacity="0.22"/>
 
   {scroll(clouds(4), 46)}
-  {scroll(hills(11, "#7FCB93", GROUND + 6, 46, 58), 26)}
-  {scroll(hills(29, "#66B77C", GROUND + 16, 26, 44), 16)}
+  {scroll(hills(11, "#7FCB93", GROUND + 6, 42, 14), 26)}
+  {scroll(hills(29, "#66B77C", GROUND + 16, 24, 18), 16)}
 
   <rect x="0" y="{GROUND + 8}" width="{W}" height="{H - GROUND}" fill="url(#dirt)"/>
   <line x1="0" y1="{GROUND + 8}" x2="{W}" y2="{GROUND + 8}" stroke="#3F8A50" stroke-width="2"/>
