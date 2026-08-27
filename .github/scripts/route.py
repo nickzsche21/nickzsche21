@@ -13,7 +13,8 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from pixels import (runs, PIKA_A, PIKA_B, CHAR_A, CHAR_B,  # noqa: E402
-                    SQUI_A, SQUI_B, BULB_A, BULB_B)
+                    SQUI_A, SQUI_B, BULB_A, BULB_B,
+                    JIGG_A, JIGG_B, PSY_A, PSY_B)
 
 PX = 4
 CW, CH = 232, 62                      # canvas in pixels
@@ -107,10 +108,12 @@ def render():
 
     feet = PATH_B - 2
     cast = [
-        (PIKA_A, PIKA_B, 14, feet - 19, 0.44, 0.00),
-        (CHAR_A, CHAR_B, 62, feet - 18, 0.48, 0.11),
-        (SQUI_A, SQUI_B, 108, feet - 17, 0.46, 0.23),
-        (BULB_A, BULB_B, 154, feet - 18, 0.50, 0.07),
+        (PIKA_A, PIKA_B, 6, feet - 19, 0.44, 0.00),
+        (CHAR_A, CHAR_B, 42, feet - 18, 0.48, 0.11),
+        (SQUI_A, SQUI_B, 78, feet - 17, 0.46, 0.23),
+        (BULB_A, BULB_B, 114, feet - 18, 0.50, 0.07),
+        (JIGG_A, JIGG_B, 152, feet - 14, 0.42, 0.29),
+        (PSY_A, PSY_B, 186, feet - 17, 0.52, 0.17),
     ]
     walkers = "".join(walker(a, b, x, y, p, ph) for a, b, x, y, p, ph in cast)
 
@@ -122,7 +125,7 @@ def render():
   {scroll(trees + far, 30, "t")}
   {grass_top}{path}{grass_bot}
   {scroll(tufts_far, 22, "g1")}
-  {scroll(stones + ball(196, PATH_T + 4), 11, "st")}
+  {scroll(stones + ball(216, PATH_T + 4), 11, "st")}
   {walkers}
   {scroll(tufts_near, 8, "g2")}
 </g>
