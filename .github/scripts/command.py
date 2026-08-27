@@ -12,41 +12,12 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from vitals import _req, load_state, save_state, USER  # noqa: E402
+import dungeon  # noqa: E402
 
 REPO = os.environ.get("GITHUB_REPOSITORY", "%s/%s" % (USER, USER))
 EVENT = os.environ.get("GITHUB_EVENT_PATH", "")
 
-VALID = ("observe", "feed", "provoke", "autopsy")
-
-REPLY = {
-    "observe": (
-        "**OBSERVATION RECORDED.**\n\n"
-        "You have been added to the chamber log. The specimen does not know "
-        "what you look like, only that you were here at `{ts}`. "
-        "That is now permanent."
-    ),
-    "feed": (
-        "**NUTRIENT ACCEPTED.**\n\n"
-        "Decay index reduced. Reserve now `{n}` unit(s) — it evaporates by one "
-        "every observation cycle, so this is a loan against entropy, not a cure. "
-        "The only real cure is the subject shipping something."
-    ),
-    "provoke": (
-        "**STIMULUS LOGGED.**\n\n"
-        "The specimen registered the contact and did not enjoy it. "
-        "You are now recorded as a hostile observer. There is no way to undo this. "
-        "Provocation count: `{p}`."
-    ),
-    "autopsy": (
-        "**FULL READOUT — SUBJECT {user}**\n\n"
-        "```\nDECAY {decay}%   INTEGRITY {integrity}%   PULSE {bpm} BPM\n"
-        "SILENCE {silence}d   STREAK {streak}d   VELOCITY {velocity}/day\n"
-        "TISSUE {living} living / {necrotic} necrotic   MASS {stars}★\n```\n\n"
-        "The subject is not dead. The subject is measured. "
-        "There is a difference, and this page exists to keep it."
-    ),
-}
-
+VALID = ("north", "south", "east", "west", "descend")
 
 def event():
     if not EVENT or not os.path.exists(EVENT):
@@ -100,42 +71,82 @@ def main():
 
     cmd = parse(issue)
     if not cmd:
-        comment(num, "**UNRECOGNISED STIMULUS.**\n\nThe chamber accepts `observe`, "
-                     "`feed`, `provoke`, `autopsy`. Nothing else registers.")
+        comment(num, "The dungeon does not understand. Move `north`, `south`, "
+                     "`east` or `west` — or `descend` to begin a new run once "
+                     "the hero has fallen.")
         close(num)
         return
 
     st = load_state()
-    st.setdefault("observers", {})
-    st.setdefault("log", [])
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    st.setdefault("hall", [])
+    st.setdefault("players", {})
+    game = st.get("game")
+    if not game:
+        game = dungeon.new_run(1)
+        st["game"] = game
 
-    rec = st["observers"].setdefault(login, {"avatar": avatar, "n": 0, "provokes": 0})
+    # a fallen hero blocks every command but the next descent
+    if not game.get("alive"):
+        if cmd != "descend":
+            comment(num, "**The hero lies dead on floor %d.**\n\nThe run is "
+                         "over — no one can move a corpse. Open a `descend` "
+                         "issue to send the next one down."
+                         % game["floor"])
+            close(num)
+            return
+        st["hall"].insert(0, {
+            "run": game["run"], "floor": game["floor"], "gold": game["gold"],
+            "kills": game["kills"], "party": game.get("party", []),
+            "turns": game["turn"],
+        })
+        st["hall"] = st["hall"][:12]
+        game = dungeon.new_run(game["run"] + 1)
+        st["game"] = game
+        save_state(st)
+        comment(num, "**RUN %02d BEGINS.**\n\nA new hero steps through the gate "
+                     "with %d hit points. The dungeon has been regenerated — "
+                     "nobody has seen this floor before.\n\nMove first and the "
+                     "chronicle remembers you opened it."
+                % (game["run"], game["hp"]))
+        close(num)
+        return
+
+    if cmd == "descend":
+        comment(num, "The hero still lives. `descend` only works over a corpse — "
+                     "find the stairs and walk down them instead.")
+        close(num)
+        return
+
+    before_floor = game["floor"]
+    out = dungeon.step(game, cmd, login)
+
+    rec = st["players"].setdefault(login, {"avatar": avatar, "moves": 0})
     rec["avatar"] = avatar or rec.get("avatar", "")
-    rec["n"] = rec.get("n", 0) + 1
-    if cmd == "provoke":
-        rec["provokes"] = rec.get("provokes", 0) + 1
-    if cmd == "feed":
-        st["nutrients"] = min(12, int(st.get("nutrients", 0)) + 1)
-
-    st["log"].insert(0, {"who": login, "avatar": avatar, "cmd": cmd, "ts": ts})
-    st["log"] = st["log"][:40]
+    rec["moves"] = rec.get("moves", 0) + 1
     save_state(st)
 
-    # respond in character
-    if cmd == "autopsy":
-        from vitals import fetch, derive
-        v = derive(fetch(), st)
-        body = REPLY["autopsy"].format(
-            user=login, decay=v["decay"], integrity=v["integrity"], bpm=v["bpm"],
-            silence=v["silence"], streak=v["streak"], velocity=v["velocity"],
-            living=v["living"], necrotic=v["necrotic"], stars=v["stars"])
-    else:
-        body = REPLY[cmd].format(ts=ts, n=st.get("nutrients", 0),
-                                 p=rec.get("provokes", 0))
+    body = ["**%s — turn %d**" % (cmd.upper(), game["turn"]), ""]
+    if out:
+        body.append("```")
+        body.extend(out)
+        body.append("```")
+    body.append("`HP %d/%d`  ·  `%d gold`  ·  `%d slain`  ·  `floor %d`"
+                % (game["hp"], game["maxhp"], game["gold"], game["kills"],
+                   game["floor"]))
+    if game["floor"] > before_floor:
+        body.append("")
+        body.append("**You took the party deeper. Floor %d is untouched.**"
+                    % game["floor"])
+    if not game.get("alive"):
+        body.append("")
+        body.append("**THE HERO IS DEAD.** Run %02d ends on floor %d with %d gold "
+                    "and %d kills, across %d hands. Open a `descend` issue to "
+                    "start run %02d."
+                    % (game["run"], game["floor"], game["gold"], game["kills"],
+                       len(game.get("party", [])), game["run"] + 1))
 
-    comment(num, body + "\n\n<sub>The chamber re-renders within the minute. "
-                        "You will appear in the observation log on the profile.</sub>")
+    comment(num, "\n".join(body) +
+            "\n\n<sub>The board redraws on the profile within the minute.</sub>")
     close(num)
     print("handled %s from %s" % (cmd, login))
 

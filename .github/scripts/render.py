@@ -12,8 +12,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from vitals import fetch, derive, USER, load_state, save_state  # noqa: E402
 import chamber  # noqa: E402
 import letterhead  # noqa: E402
+import dungeon  # noqa: E402
 
-STYLE = os.environ.get("SPECIMEN_STYLE", "letterhead")
+STYLE = os.environ.get("SPECIMEN_STYLE", "game")
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -95,68 +96,90 @@ def issue_link(repo, cmd, title, body):
     return "https://github.com/%s/issues/new?%s" % (repo, q)
 
 
-def observer_block(st):
-    log = (st or {}).get("log", [])
-    obs = (st or {}).get("observers", {})
-    if not log:
-        return ("> **THE LOG IS EMPTY.** No one has touched the chamber yet.\n>\n"
-                "> The first observer gets the first line, permanently.")
+def hall_block(st):
+    hall = (st or {}).get("hall", [])
+    if not hall:
+        return ""
+    rows = ["| RUN | DEPTH | GOLD | SLAIN | TURNS | HANDS ON THE BLADE |",
+            "|--:|--:|--:|--:|--:|:--|"]
+    for r in hall[:8]:
+        who = r.get("party", [])
+        names = ", ".join("@%s" % w for w in who[:5])
+        if len(who) > 5:
+            names += " +%d" % (len(who) - 5)
+        rows.append("| %02d | %d | %d | %d | %d | %s |"
+                    % (r["run"], r["floor"], r["gold"], r["kills"],
+                       r.get("turns", 0), names or "—"))
+    return "\n### HALL OF RECORDS\n\n" + "\n".join(rows) + "\n"
 
+
+def party_block(st):
+    game = (st or {}).get("game", {}) or {}
+    players = (st or {}).get("players", {})
+    party = game.get("party", [])
+    if not party:
+        return ""
     faces = []
-    seen = []
-    for e in log:
-        if e["who"] not in seen:
-            seen.append(e["who"])
-    for who in seen[:18]:
-        av = obs.get(who, {}).get("avatar", "")
+    for who in party[:20]:
+        av = players.get(who, {}).get("avatar", "")
         if av:
-            faces.append(
-                '<a href="https://github.com/%s" title="%s — %d stimulus(es)">'
-                '<img src="%s&s=52" width="42" height="42" alt="%s" /></a>'
-                % (who, who, obs.get(who, {}).get("n", 1), av, who))
-    face_row = "".join(faces)
-
-    rows = []
-    for e in log[:10]:
-        rows.append("| `%s` | **%s** | [@%s](https://github.com/%s) |"
-                    % (e["ts"], e["cmd"].upper(), e["who"], e["who"]))
-
-    hostile = sorted(
-        [(w, d.get("provokes", 0)) for w, d in obs.items() if d.get("provokes", 0)],
-        key=lambda x: -x[1])[:5]
-    hostile_line = ""
-    if hostile:
-        hostile_line = "\n**HOSTILE OBSERVERS.** " + ", ".join(
-            "[@%s](https://github.com/%s) ×%d" % (w, w, n) for w, n in hostile) + "\n"
-
-    return f"""<div align="center">
-
-{face_row}
-
-**{len(obs)} observer(s) on record · {len(log)} logged stimulus(es) · {st.get('nutrients', 0)} nutrient unit(s) in reserve**
-
-</div>
-{hostile_line}
-| WHEN | STIMULUS | OBSERVER |
-|:--|:--|:--|
-{chr(10).join(rows)}
-"""
+            faces.append('<a href="https://github.com/%s" title="%s — %d move(s)">'
+                         '<img src="%s&s=48" width="34" height="34" alt="%s"/></a>'
+                         % (who, who, players.get(who, {}).get("moves", 1), av, who))
+    if not faces:
+        return ""
+    return "\n<div align=\"center\">\n\n%s\n\n<sub>hands on the blade this run</sub>\n\n</div>\n" % "".join(faces)
 
 
 def render_readme(v, st):
+    repo = "%s/%s" % (USER, USER)
     stamp = str(int(time.time()))
-    login = v["user"].get("login", USER)
-    pool = [o for o in v["organs"] if o["name"].lower() != login.lower()]
-    named = [o for o in pool if o["desc"] or o["stars"]][:3] or pool[:3]
-    links = " · ".join("[%s](%s)" % (o["name"], o["url"]) for o in named)
+    game = st.get("game", {}) or {}
+    alive = game.get("alive", True)
+
+    def mv(slug, label):
+        return "[%s](%s)" % (label, issue_link(
+            repo, slug, "descent: %s" % slug, "command=%s" % slug))
+
+    if alive:
+        controls = ("| %s | %s | %s | %s |\n|:--:|:--:|:--:|:--:|\n"
+                    "| move up | move down | move left | move right |"
+                    % (mv("north", "**NORTH**"), mv("south", "**SOUTH**"),
+                       mv("west", "**WEST**"), mv("east", "**EAST**")))
+        state_line = ("**HP %d/%d** · **%d gold** · **%d slain** · **floor %d** · turn %d"
+                      % (game.get("hp", 0), game.get("maxhp", 0), game.get("gold", 0),
+                         game.get("kills", 0), game.get("floor", 1), game.get("turn", 0)))
+    else:
+        controls = "### %s\n\nThe hero is dead. Send the next one down." % mv(
+            "descend", "**BEGIN RUN %02d**" % (game.get("run", 1) + 1))
+        state_line = "**THE HERO FELL ON FLOOR %d** — run %02d is over." % (
+            game.get("floor", 1), game.get("run", 1))
+
+    chron = ""
+    if game.get("log"):
+        chron = "\n> " + "\n> ".join(game["log"][:3]) + "\n"
 
     return f"""<div align="center">
 
-<img src="assets/card.svg?v={stamp}" alt="{v['user'].get('name', login)} — statement of record" width="100%" />
+<img src="assets/descent.svg?v={stamp}" alt="The Descent — run {game.get('run', 1)}, floor {game.get('floor', 1)}" width="100%" />
 
-<sub>{links}</sub>
+{state_line}
 
 </div>
+
+## TAKE THE NEXT TURN
+
+One hero. One dungeon. **Everyone plays the same run.** Click a direction — it
+opens a pre-filled issue, a machine moves the hero, fights whatever is standing
+there, and redraws the board above. Walk into a monster to attack it. Find the
+stairs to go deeper. When the hero dies, the run is over for everybody and the
+dungeon regenerates.
+
+{controls}
+{chron}{party_block(st)}{hall_block(st)}
+---
+
+<sub>Built by [{USER}](https://github.com/{USER}) — {", ".join("[%s](%s)" % (o["name"], o["url"]) for o in [o for o in v["organs"] if o["name"].lower() != USER.lower() and (o["desc"] or o["stars"])][:3])}</sub>
 """
 
 
@@ -168,10 +191,17 @@ def main():
         st["nutrients"] = int(st["nutrients"]) - 1
         save_state(st)
     os.makedirs(os.path.join(ROOT, "assets"), exist_ok=True)
-    art = letterhead if STYLE == "letterhead" else chamber
-    name = "card.svg" if STYLE == "letterhead" else "specimen.svg"
+    if STYLE == "game":
+        if not st.get("game"):
+            st["game"] = dungeon.new_run(1)
+            save_state(st)
+        svg, name = dungeon.render_svg(st["game"]), "descent.svg"
+    elif STYLE == "letterhead":
+        svg, name = letterhead.render(v), "card.svg"
+    else:
+        svg, name = chamber.render(v), "specimen.svg"
     with open(os.path.join(ROOT, "assets", name), "w") as f:
-        f.write(art.render(v))
+        f.write(svg)
 
     readme_path = os.path.join(ROOT, "README.md")
     with open(readme_path, "w") as f:
