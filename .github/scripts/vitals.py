@@ -200,8 +200,12 @@ def derive(raw, state=None):
                 age = (now - dt).days
             except Exception:
                 pass
+        year = ""
+        if pushed:
+            year = pushed[:4]
         organs.append(
             {
+                "year": year,
                 "name": r.get("name", "?"),
                 "desc": (r.get("description") or "").strip(),
                 "stars": r.get("stargazers_count", 0),

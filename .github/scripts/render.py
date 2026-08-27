@@ -11,6 +11,9 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from vitals import fetch, derive, USER, load_state, save_state  # noqa: E402
 import chamber  # noqa: E402
+import letterhead  # noqa: E402
+
+STYLE = os.environ.get("SPECIMEN_STYLE", "letterhead")
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
@@ -141,42 +144,19 @@ def observer_block(st):
 
 
 def render_readme(v, st):
-    repo = "%s/%s" % (USER, USER)
     stamp = str(int(time.time()))
-
-    pool = [o for o in v["organs"] if o["name"].lower() != USER.lower()]
-    top = [o for o in pool if o["stars"] > 0][:1]
-    recent = [o for o in pool if o["age"] <= 60][:2]
-    picks, seen = [], set()
-    for o in top + recent:
-        if o["name"] not in seen:
-            seen.add(o["name"])
-            picks.append("[%s](%s)" % (o["name"], o["url"]))
-    work = " · ".join(picks)
-
-    cmds = []
-    for slug in ("observe", "feed", "provoke", "autopsy"):
-        link = issue_link(repo, slug, "specimen: %s" % slug, "command=%s" % slug)
-        cmds.append("[%s](%s)" % (slug.upper(), link))
+    login = v["user"].get("login", USER)
+    pool = [o for o in v["organs"] if o["name"].lower() != login.lower()]
+    named = [o for o in pool if o["desc"] or o["stars"]][:3] or pool[:3]
+    links = " · ".join("[%s](%s)" % (o["name"], o["url"]) for o in named)
 
     return f"""<div align="center">
 
-<img src="assets/specimen.svg?v={stamp}" alt="Specimen {v['uid']} — containment chamber" width="100%" />
+<img src="assets/card.svg?v={stamp}" alt="{v['user'].get('name', login)} — statement of record" width="100%" />
 
-**STAGE {v['stage']} — {v['stage_label']}**  ·  {v['silence']}d silent  ·  {v['streak']}d streak
-
-Building {work}
-
-<sub>This page is not written. It is measured every six hours and re-rendered.
-If it ever stops changing, so did he.</sub>
-
-{" · ".join(cmds)}
-
-<sub>touch the chamber — it answers, and it remembers you</sub>
+<sub>{links}</sub>
 
 </div>
-
-{observer_block(st)}
 """
 
 
@@ -188,8 +168,10 @@ def main():
         st["nutrients"] = int(st["nutrients"]) - 1
         save_state(st)
     os.makedirs(os.path.join(ROOT, "assets"), exist_ok=True)
-    with open(os.path.join(ROOT, "assets", "specimen.svg"), "w") as f:
-        f.write(chamber.render(v))
+    art = letterhead if STYLE == "letterhead" else chamber
+    name = "card.svg" if STYLE == "letterhead" else "specimen.svg"
+    with open(os.path.join(ROOT, "assets", name), "w") as f:
+        f.write(art.render(v))
 
     readme_path = os.path.join(ROOT, "README.md")
     with open(readme_path, "w") as f:
