@@ -198,8 +198,8 @@ def step(st, direction, who):
 
 
 # ------------------------------------------------------------------ rendering
-BG, WALLC, WALLTOP = "#0A0A0B", "#17171B", "#22222A"
-FLOORC, DOT = "#0E0E11", "#1C1C22"
+BG, WALLC, WALLTOP = "#08080A", "#252530", "#363646"
+FLOORC, DOT = "#0B0B0E", "#26262F"
 BRASS, RULE, PRIMARY, MUTED = "#E8C07D", "#23222A", "#EDEAE4", "#6B6660"
 TINT = {"rat": "#8A857B", "goblin": "#7FA650", "orc": "#C4703A", "wraith": "#A05BC4"}
 GOLDC, POTC, BLOOD = "#D4A24C", "#4FA88B", "#C4453A"
@@ -232,17 +232,19 @@ def render_svg(st):
             if c == WALL:
                 p.append('<rect x="%d" y="%d" width="%d" height="%d" fill="%s"/>'
                          % (px, py, TILE, TILE, WALLC))
-                p.append('<rect x="%d" y="%d" width="%d" height="2" fill="%s" opacity="0.5"/>'
+                p.append('<rect x="%d" y="%d" width="%d" height="3" fill="%s" opacity="0.85"/>'
                          % (px, py, TILE, WALLTOP))
             else:
                 p.append('<rect x="%d" y="%d" width="%d" height="%d" fill="%s"/>'
                          % (px, py, TILE, TILE, FLOORC))
-                p.append('<circle cx="%d" cy="%d" r="1" fill="%s"/>'
+                p.append('<circle cx="%d" cy="%d" r="1.4" fill="%s"/>'
                          % (px + TILE // 2, py + TILE // 2, DOT))
             if c == STAIR:
-                p.append('<text x="%d" y="%d" class="glyph" fill="%s" '
+                p.append('<rect x="%d" y="%d" width="%d" height="%d" fill="%s" opacity="0.14"/>'
+                         % (px, py, TILE, TILE, BRASS))
+                p.append('<text x="%d" y="%d" class="stair" fill="%s" '
                          'text-anchor="middle">&#8615;</text>'
-                         % (px + TILE // 2, py + TILE - 9, BRASS))
+                         % (px + TILE // 2, py + TILE - 8, BRASS))
 
     # ---- loot
     for it in st["items"]:
@@ -315,7 +317,7 @@ def render_svg(st):
            ".run{font-family:%s;font-size:10px;letter-spacing:2.6px;fill:%s}"
            ".key{font-family:%s;font-size:9px;letter-spacing:2.6px;fill:%s}"
            ".val{font-family:%s;font-size:14px;fill:%s}"
-           ".glyph{font-family:%s;font-size:19px}"
+           ".stair{font-family:%s;font-size:23px;font-weight:700}"
            ".mob{font-family:%s;font-size:16px;font-weight:700}"
            ".hero{font-family:%s;font-size:17px;font-weight:700;fill:#0A0A0B}"
            ".log{font-family:%s;font-size:12px;letter-spacing:0.4px;fill:%s}"

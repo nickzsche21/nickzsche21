@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/descent.svg?v=1787820937" alt="The Descent — run 1, floor 1" width="100%" />
+<img src="assets/descent.svg?v=1787821080" alt="The Descent — run 1, floor 1" width="100%" />
 
 **HP 22/22** · **0 gold** · **0 slain** · **floor 1** · turn 0
 
