@@ -14,10 +14,11 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from pixels import (runs, PIKA_A, PIKA_B, CHAR_A, CHAR_B,  # noqa: E402
                     SQUI_A, SQUI_B, BULB_A, BULB_B,
-                    JIGG_A, JIGG_B, PSY_A, PSY_B)
+                    JIGG_A, JIGG_B, PSY_A, PSY_B,
+                    HEAT_A, HEAT_B, FOUR_A, FOUR_B)
 
 PX = 4
-CW, CH = 232, 62                      # canvas in pixels
+CW, CH = 260, 62                      # canvas in pixels
 W, H = CW * PX, CH * PX               # 928 x 248
 
 SKY_T, SKY_B = "#8FD8F2", "#BFEAF8"
@@ -90,6 +91,44 @@ def walker(a, b, x, y, period, phase):
                fb, anim % ("0;0;1;1", period, phase)))
 
 
+def omnitrix(x, y, slot):
+    """The green burst that fires at every transformation."""
+    cx, cy = (x + 12) * PX, (y + 9) * PX
+    rings = []
+    for i, r in enumerate((10, 22, 36)):
+        rings.append(
+            '<circle cx="%d" cy="%d" r="%d" fill="none" stroke="#7CF03A" '
+            'stroke-width="%d" opacity="0">'
+            '<animate attributeName="opacity" values="0.95;0.5;0;0" '
+            'keyTimes="0;%.3f;%.3f;1" dur="%.2fs" repeatCount="indefinite"/>'
+            '<animate attributeName="r" values="%d;%d" keyTimes="0;%.3f" '
+            'dur="%.2fs" repeatCount="indefinite"/></circle>'
+            % (cx, cy, r, 6 - i * 2, 0.05 + i * 0.02, 0.16 + i * 0.03, slot,
+               r // 3, r + 14, 0.20 + i * 0.03, slot))
+    glow = ('<circle cx="%d" cy="%d" r="30" fill="#7CF03A" opacity="0">'
+            '<animate attributeName="opacity" values="0.85;0.3;0;0" '
+            'keyTimes="0;0.06;0.18;1" dur="%.2fs" repeatCount="indefinite"/>'
+            '</circle>' % (cx, cy, slot))
+    return glow + "".join(rings)
+
+
+def transformer(forms, x, y, cycle=10.5):
+    """One slot cycling through forms — the Omnitrix does the rest."""
+    n = len(forms)
+    slot = cycle / n
+    out = []
+    for i, (a, b, period, dy) in enumerate(forms):
+        vals = ";".join("1" if j == i else "0" for j in range(n)) + ";" + \
+               ("1" if i == 0 else "0")
+        keys = ";".join("%.4f" % (j / float(n)) for j in range(n)) + ";1"
+        out.append('<g opacity="0"><animate attributeName="opacity" values="%s"'
+                   ' keyTimes="%s" dur="%.2fs" repeatCount="indefinite"'
+                   ' calcMode="discrete"/>%s</g>'
+                   % (vals, keys, cycle,
+                      walker(a, b, x, y + dy, period, 0.0)))
+    return "".join(out) + omnitrix(x, y, slot)
+
+
 def render():
     sky = "".join(px(0, y, CW, 1, SKY_T if y < 10 else SKY_B)
                   for y in range(0, HORIZON))
@@ -108,14 +147,24 @@ def render():
 
     feet = PATH_B - 2
     cast = [
-        (PIKA_A, PIKA_B, 6, feet - 19, 0.44, 0.00),
-        (CHAR_A, CHAR_B, 42, feet - 18, 0.48, 0.11),
-        (SQUI_A, SQUI_B, 78, feet - 17, 0.46, 0.23),
-        (BULB_A, BULB_B, 114, feet - 18, 0.50, 0.07),
-        (JIGG_A, JIGG_B, 152, feet - 14, 0.42, 0.29),
-        (PSY_A, PSY_B, 186, feet - 17, 0.52, 0.17),
+        (CHAR_A, CHAR_B, 40, feet - 18, 0.48, 0.11),
+        (SQUI_A, SQUI_B, 74, feet - 17, 0.46, 0.23),
+        (BULB_A, BULB_B, 108, feet - 18, 0.50, 0.07),
+        (JIGG_A, JIGG_B, 144, feet - 14, 0.42, 0.29),
+        (PSY_A, PSY_B, 176, feet - 17, 0.52, 0.17),
     ]
     walkers = "".join(walker(a, b, x, y, p, ph) for a, b, x, y, p, ph in cast)
+    # the one that cannot decide what it is
+    walkers += transformer([
+        (PIKA_A, PIKA_B, 0.44, -19),
+        (HEAT_A, HEAT_B, 0.46, -18),
+        (FOUR_A, FOUR_B, 0.52, -18),
+    ], 6, feet)
+    walkers += transformer([
+        (FOUR_A, FOUR_B, 0.50, -18),
+        (PIKA_A, PIKA_B, 0.44, -19),
+        (HEAT_A, HEAT_B, 0.46, -18),
+    ], 212, feet)
 
     return f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}" width="{W}" height="{H}" shape-rendering="crispEdges" role="img" aria-label="A pixel route that never ends">
 <defs><clipPath id="fr"><rect width="{W}" height="{H}"/></clipPath></defs>
@@ -125,7 +174,7 @@ def render():
   {scroll(trees + far, 30, "t")}
   {grass_top}{path}{grass_bot}
   {scroll(tufts_far, 22, "g1")}
-  {scroll(stones + ball(216, PATH_T + 4), 11, "st")}
+  {scroll(stones + ball(240, PATH_T + 4), 11, "st")}
   {walkers}
   {scroll(tufts_near, 8, "g2")}
 </g>
