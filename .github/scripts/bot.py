@@ -108,15 +108,25 @@ def tick(state):
         game = d.new_run(1)
         state["game"] = game
 
-    lines = []
+    lines, notable = [], []
     for _ in range(TURNS_PER_TICK):
         if not game.get("alive"):
             break
         mv, why = decide(game)
         out = d.step(game, mv, "the hero")
         for ln in out:
-            if "walked into stone" not in ln:
-                lines.append(ln)
+            if "walked into stone" in ln:
+                continue
+            lines.append(ln)
+            if "moved" not in ln:
+                notable.append(ln)
+
+    # a chronicle of four identical footsteps is worth nobody's time
+    if notable:
+        game["log"] = list(reversed(notable))[:5]
+    else:
+        game["log"] = ["the hero pressed on — nothing stirred on floor %d"
+                       % game["floor"]]
 
     if not game.get("alive"):
         state.setdefault("hall", []).insert(0, {

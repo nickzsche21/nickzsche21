@@ -60,12 +60,7 @@
     ],
     "alive": true,
     "log": [
-      "the hero moved west",
-      "the hero moved west",
-      "the hero moved west",
-      "the hero moved west",
-      "the hero moved west",
-      "The gate closes behind you."
+      "the hero pressed on \u2014 nothing stirred on floor 1"
     ],
     "party": [
       "the hero"
