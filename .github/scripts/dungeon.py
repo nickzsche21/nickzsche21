@@ -68,7 +68,7 @@ def generate(run, floor):
     grid[sy][sx] = STAIR
 
     # inhabitants scale with depth
-    tier = min(3, floor // 2)
+    tier = min(3, floor // 3)
     monsters = []
     for r in rooms[1:]:
         for _ in range(rnd.randint(1, 2)):
@@ -134,7 +134,7 @@ def step(st, direction, who):
     target = _monster_at(st, nx, ny)
     if target:
         k = KINDS[target["k"]]
-        dmg = rnd.randint(2, 5)
+        dmg = rnd.randint(2, 5) + st["floor"] // 4
         target["hp"] -= dmg
         if target["hp"] <= 0:
             st["monsters"].remove(target)

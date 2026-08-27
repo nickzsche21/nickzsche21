@@ -1,213 +1,118 @@
 #!/usr/bin/env python3
 """
-SPECIMEN — observation report renderer.
-Writes assets/specimen.svg and README.md from live telemetry.
+Wake the hero, let it act, redraw the profile.
+One scheduled job calls this. There is nothing to click and nothing to answer.
 """
+import json
 import os
-import random
+import ssl
 import sys
 import time
+import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from vitals import fetch, derive, USER, load_state, save_state  # noqa: E402
-import chamber  # noqa: E402
-import letterhead  # noqa: E402
-import dungeon  # noqa: E402
-
-STYLE = os.environ.get("SPECIMEN_STYLE", "game")
+import bot        # noqa: E402
+import dungeon    # noqa: E402
+import store      # noqa: E402
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-
-GLITCH = "▓▒░█▄▀╳╱╲┼╬※#@%&"
-
-# Three morphologies. Corruption is applied on top, driven by real decay.
-FORM_HEALTHY = r"""
-              \    |    /
-               \   |   /
-          ╭─────────────────╮
-      ────┤   ◜  (( ● ))  ◝   ├────
-          ╰─────────────────╯
-               /   |   \
-              /    |    \
-"""
-
-FORM_FADING = r"""
-               '   |   ,
-                \  |  /
-          ╭─────────────────╮
-      ─ ──┤   ·   ( ◉ )   ·   ├── ─
-          ╰─────────────────╯
-                /  |  \
-               ,   |   '
-"""
-
-FORM_DEAD = r"""
-                   .
-          ╭─────────────────╮
-       ·  ┆       ( ○ )       ┆  ·
-          ╰─ ─ ─ ─ ─ ─ ─ ─ ─╯
-                   .
-"""
+USER = os.environ.get("SPECIMEN_USER", "nickzsche21")
+TOKEN = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
 
 
-def corrupt(art, decay, seed):
-    """Eat the organism in proportion to real silence."""
-    if decay < 20:
-        return art
-    rnd = random.Random(seed)
-    rate = (decay - 20) / 100.0 * 0.34
-    out = []
-    for ch in art:
-        if ch not in " \n" and rnd.random() < rate:
-            out.append(rnd.choice(GLITCH))
-        else:
-            out.append(ch)
-    return "".join(out)
+def top_repos(n=3):
+    """A quiet footer of real work. Never fatal if the network says no."""
+    url = ("https://api.github.com/users/%s/repos?per_page=100&sort=pushed"
+           % USER)
+    h = {"Accept": "application/vnd.github+json", "User-Agent": "descent"}
+    if TOKEN:
+        h["Authorization"] = "bearer " + TOKEN
+    try:
+        req = urllib.request.Request(url, headers=h)
+        with urllib.request.urlopen(req, context=ssl.create_default_context(),
+                                    timeout=20) as r:
+            repos = json.loads(r.read().decode())
+    except Exception as e:
+        print("repo fetch skipped: %s" % e)
+        return []
+    repos = [r for r in repos
+             if not r.get("fork") and r["name"].lower() != USER.lower()
+             and (r.get("description") or r.get("stargazers_count"))]
+    repos.sort(key=lambda r: -r.get("stargazers_count", 0))
+    return repos[:n]
 
 
-def organism(v):
-    if v["stage"] >= 4:
-        art = FORM_HEALTHY
-    elif v["stage"] >= 2:
-        art = FORM_FADING
-    else:
-        art = FORM_DEAD
-    return corrupt(art, v["decay"], v["decay"] * 7 + v["stage"]).rstrip("\n")
-
-
-def bar(pct, width=28, full="█", empty="░"):
-    n = int(round(width * pct / 100.0))
-    return full * n + empty * (width - n)
-
-
-def sparkline(days, n=30):
-    ramp = "▁▁▂▃▄▅▆▇█"
-    tail = [c for _, c in days[-n:]]
-    if not tail:
-        return ""
-    peak = max(tail) or 1
-    return "".join(ramp[min(8, int(round(c / peak * 8)))] for c in tail)
-
-
-def issue_link(repo, cmd, title, body):
-    import urllib.parse
-
-    q = urllib.parse.urlencode({"title": title, "body": body})
-    return "https://github.com/%s/issues/new?%s" % (repo, q)
-
-
-def hall_block(st):
-    hall = (st or {}).get("hall", [])
+def records(st):
+    hall = st.get("hall", [])
     if not hall:
         return ""
-    rows = ["| RUN | DEPTH | GOLD | SLAIN | TURNS | HANDS ON THE BLADE |",
-            "|--:|--:|--:|--:|--:|:--|"]
+    rows = ["| RUN | REACHED | GOLD | SLAIN | TURNS |",
+            "|--:|:--|--:|--:|--:|"]
     for r in hall[:8]:
-        who = r.get("party", [])
-        names = ", ".join("@%s" % w for w in who[:5])
-        if len(who) > 5:
-            names += " +%d" % (len(who) - 5)
-        rows.append("| %02d | %d | %d | %d | %d | %s |"
+        rows.append("| %02d | floor %d | %d | %d | %d |"
                     % (r["run"], r["floor"], r["gold"], r["kills"],
-                       r.get("turns", 0), names or "—"))
-    return "\n### HALL OF RECORDS\n\n" + "\n".join(rows) + "\n"
+                       r.get("turns", 0)))
+    return ("\n## RECORDS\n\nEvery hero so far, and how deep they got before "
+            "the dungeon took them.\n\n" + "\n".join(rows) + "\n")
 
 
-def party_block(st):
-    game = (st or {}).get("game", {}) or {}
-    players = (st or {}).get("players", {})
-    party = game.get("party", [])
-    if not party:
-        return ""
-    faces = []
-    for who in party[:20]:
-        av = players.get(who, {}).get("avatar", "")
-        if av:
-            faces.append('<a href="https://github.com/%s" title="%s — %d move(s)">'
-                         '<img src="%s&s=48" width="34" height="34" alt="%s"/></a>'
-                         % (who, who, players.get(who, {}).get("moves", 1), av, who))
-    if not faces:
-        return ""
-    return "\n<div align=\"center\">\n\n%s\n\n<sub>hands on the blade this run</sub>\n\n</div>\n" % "".join(faces)
-
-
-def render_readme(v, st):
-    repo = "%s/%s" % (USER, USER)
+def readme(st, repos):
+    g = st["game"]
     stamp = str(int(time.time()))
-    game = st.get("game", {}) or {}
-    alive = game.get("alive", True)
+    deepest = st.get("deepest", 0)
 
-    def mv(slug, label):
-        return "[%s](%s)" % (label, issue_link(
-            repo, slug, "descent: %s" % slug, "command=%s" % slug))
+    chronicle = ""
+    if g.get("log"):
+        chronicle = "> " + "\n> ".join(g["log"][:3]) + "\n"
 
-    if alive:
-        controls = ("| %s | %s | %s | %s |\n|:--:|:--:|:--:|:--:|\n"
-                    "| move up | move down | move left | move right |"
-                    % (mv("north", "**NORTH**"), mv("south", "**SOUTH**"),
-                       mv("west", "**WEST**"), mv("east", "**EAST**")))
-        state_line = ("**HP %d/%d** · **%d gold** · **%d slain** · **floor %d** · turn %d"
-                      % (game.get("hp", 0), game.get("maxhp", 0), game.get("gold", 0),
-                         game.get("kills", 0), game.get("floor", 1), game.get("turn", 0)))
-    else:
-        controls = "### %s\n\nThe hero is dead. Send the next one down." % mv(
-            "descend", "**BEGIN RUN %02d**" % (game.get("run", 1) + 1))
-        state_line = "**THE HERO FELL ON FLOOR %d** — run %02d is over." % (
-            game.get("floor", 1), game.get("run", 1))
+    foot = " · ".join("[%s](%s)" % (r["name"], r["html_url"]) for r in repos)
+    foot = ("\n<sub>Built by [%s](https://github.com/%s)%s</sub>"
+            % (USER, USER, " — " + foot if foot else ""))
 
-    chron = ""
-    if game.get("log"):
-        chron = "\n> " + "\n> ".join(game["log"][:3]) + "\n"
+    deep = ""
+    if deepest:
+        deep = " · deepest ever **floor %d**" % deepest
 
     return f"""<div align="center">
 
-<img src="assets/descent.svg?v={stamp}" alt="The Descent — run {game.get('run', 1)}, floor {game.get('floor', 1)}" width="100%" />
+<img src="assets/descent.svg?v={stamp}" alt="The Descent — run {g['run']}, floor {g['floor']}" width="100%" />
 
-{state_line}
+**RUN {g['run']:02d}** · floor **{g['floor']}** · **{g['hp']}/{g['maxhp']}** hp · **{g['gold']}** gold · **{g['kills']}** slain{deep}
 
 </div>
 
-## TAKE THE NEXT TURN
+## THE DESCENT
 
-One hero. One dungeon. **Everyone plays the same run.** Click a direction — it
-opens a pre-filled issue, a machine moves the hero, fights whatever is standing
-there, and redraws the board above. Walk into a monster to attack it. Find the
-stairs to go deeper. When the hero dies, the run is over for everybody and the
-dungeon regenerates.
+A hero is walking down through a dungeon that generates itself. Nobody is
+driving it — it reads the floor, fights what is in the way, drinks when it is
+hurt, and looks for the stairs. It wakes every three hours, takes five turns,
+and the board above is redrawn from wherever it ended up.
 
-{controls}
-{chron}{party_block(st)}{hall_block(st)}
+It has never come back up. When it dies the run is sealed into the records
+below and a new hero walks through the gate with a dungeon nobody has seen.
+
+{chronicle}{records(st)}
 ---
-
-<sub>Built by [{USER}](https://github.com/{USER}) — {", ".join("[%s](%s)" % (o["name"], o["url"]) for o in [o for o in v["organs"] if o["name"].lower() != USER.lower() and (o["desc"] or o["stars"])][:3])}</sub>
+{foot}
 """
 
 
 def main():
-    st = load_state()
-    v = derive(fetch(), st)
-    # nutrients evaporate one unit per observation cycle
-    if int(st.get("nutrients", 0)) > 0:
-        st["nutrients"] = int(st["nutrients"]) - 1
-        save_state(st)
-    os.makedirs(os.path.join(ROOT, "assets"), exist_ok=True)
-    if STYLE == "game":
-        if not st.get("game"):
-            st["game"] = dungeon.new_run(1)
-            save_state(st)
-        svg, name = dungeon.render_svg(st["game"]), "descent.svg"
-    elif STYLE == "letterhead":
-        svg, name = letterhead.render(v), "card.svg"
-    else:
-        svg, name = chamber.render(v), "specimen.svg"
-    with open(os.path.join(ROOT, "assets", name), "w") as f:
-        f.write(svg)
+    st = store.load()
+    lines = bot.tick(st)
+    store.save(st)
 
-    readme_path = os.path.join(ROOT, "README.md")
-    with open(readme_path, "w") as f:
-        f.write(render_readme(v, st))
-    print("rendered :: stage=%d decay=%d bpm=%d silence=%dd"
-          % (v["stage"], v["decay"], v["bpm"], v["silence"]))
+    os.makedirs(os.path.join(ROOT, "assets"), exist_ok=True)
+    with open(os.path.join(ROOT, "assets", "descent.svg"), "w") as f:
+        f.write(dungeon.render_svg(st["game"]))
+    with open(os.path.join(ROOT, "README.md"), "w") as f:
+        f.write(readme(st, top_repos()))
+
+    g = st["game"]
+    print("run %d floor %d hp %d/%d gold %d"
+          % (g["run"], g["floor"], g["hp"], g["maxhp"], g["gold"]))
+    for ln in lines:
+        print("  " + ln)
 
 
 if __name__ == "__main__":

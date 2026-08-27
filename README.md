@@ -1,25 +1,25 @@
 <div align="center">
 
-<img src="assets/descent.svg?v=1787821080" alt="The Descent — run 1, floor 1" width="100%" />
+<img src="assets/descent.svg?v=1787823803" alt="The Descent — run 1, floor 1" width="100%" />
 
-**HP 22/22** · **0 gold** · **0 slain** · **floor 1** · turn 0
+**RUN 01** · floor **1** · **22/22** hp · **0** gold · **0** slain
 
 </div>
 
-## TAKE THE NEXT TURN
+## THE DESCENT
 
-One hero. One dungeon. **Everyone plays the same run.** Click a direction — it
-opens a pre-filled issue, a machine moves the hero, fights whatever is standing
-there, and redraws the board above. Walk into a monster to attack it. Find the
-stairs to go deeper. When the hero dies, the run is over for everybody and the
-dungeon regenerates.
+A hero is walking down through a dungeon that generates itself. Nobody is
+driving it — it reads the floor, fights what is in the way, drinks when it is
+hurt, and looks for the stairs. It wakes every three hours, takes five turns,
+and the board above is redrawn from wherever it ended up.
 
-| [**NORTH**](https://github.com/nickzsche21/nickzsche21/issues/new?title=descent%3A+north&body=command%3Dnorth) | [**SOUTH**](https://github.com/nickzsche21/nickzsche21/issues/new?title=descent%3A+south&body=command%3Dsouth) | [**WEST**](https://github.com/nickzsche21/nickzsche21/issues/new?title=descent%3A+west&body=command%3Dwest) | [**EAST**](https://github.com/nickzsche21/nickzsche21/issues/new?title=descent%3A+east&body=command%3Deast) |
-|:--:|:--:|:--:|:--:|
-| move up | move down | move left | move right |
+It has never come back up. When it dies the run is sealed into the records
+below and a new hero walks through the gate with a dungeon nobody has seen.
 
-> The gate closes behind you.
+> the hero moved west
+> the hero moved west
+> the hero moved west
 
 ---
 
-<sub>Built by [nickzsche21](https://github.com/nickzsche21) — [VocalClaw_11Labs](https://github.com/nickzsche21/VocalClaw_11Labs), [epfo-next](https://github.com/nickzsche21/epfo-next), [quantfinancefinalboss](https://github.com/nickzsche21/quantfinancefinalboss)</sub>
+<sub>Built by [nickzsche21](https://github.com/nickzsche21) — [VocalClaw_11Labs](https://github.com/nickzsche21/VocalClaw_11Labs) · [epfo-next](https://github.com/nickzsche21/epfo-next) · [quantfinancefinalboss](https://github.com/nickzsche21/quantfinancefinalboss)</sub>
