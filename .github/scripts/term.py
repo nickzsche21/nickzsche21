@@ -24,24 +24,29 @@ YOU = "#FF4D4D"
 
 # out-lines may be a plain string, or a list of (text, colour, flicker)
 # segments positioned by character offset.
+HDR = "USER    TTY       FROM              IDLE"
+G1 = ("guest   ttys002   ", GREY, 0)
+G2 = ("guest   ttys003   ", GREY, 0)
+YOUSEG = ("<you>", YOU, 1)
+
 SCRIPT = [
-    ("cmd", "w", WHITE, 0, 0.42),
-    ("out", [("USER    TTY       FROM      IDLE", DIM, 0)], None, 0, 0.20),
-    ("out", [("nikhil  console   -         12:04", GREY, 0)], None, 0, 0.26),
-    ("out", [("guest   ttys002   ", GREY, 0),
-             ("<you>", YOU, 1),
-             ("     00:00", GREY, 0)], None, 0, 1.45),
+    ("cmd", "w", WHITE, 0, 0.34),
+    ("out", [(" 14:02  up 71 days,  2 users", DIM, 0)], None, 0, 0.18),
+    ("out", [(HDR, DIM, 0)], None, 0, 0.22),
+    ("out", [("nikhil  console   -                 12:04", GREY, 0)], None, 0, 0.28),
+    ("out", [G1, YOUSEG, ("             00:00", GREY, 0)], None, 0, 1.40),
     ("gap", "", None, 0, 0),
-    ("cmd", "last guest", WHITE, 0, 0.48),
-    ("out", [("guest   ttys002   ", GREY, 0),
-             ("<you>", YOU, 1),
-             ("     still logged in", AMBER, 0)], None, 0, 1.35),
+    ("cmd", "last guest", WHITE, 0, 0.46),
+    ("out", [G1, YOUSEG, ("             still logged in", AMBER, 0)], None, 0, 1.30),
     ("gap", "", None, 0, 0),
-    ("cmd", "kill -9 guest", WHITE, 0, 0.72),
-    ("out", [("kill: guest is not yours to end.", GREY, 0)], None, 0, 1.30),
+    ("cmd", "kill -9 $(pgrep -u guest)", WHITE, 0, 0.70),
+    ("out", [("kill: (2891) - Operation not permitted", GREY, 0)], None, 0, 1.45),
     ("gap", "", None, 0, 0),
-    ("cmd", "whoami", WHITE, 0, 1.05),
-    ("out", [("that's the question, isn't it.", RED, 1)], None, 0, 3.10),
+    ("cmd", "w", WHITE, 0, 0.34),
+    ("out", [(HDR, DIM, 0)], None, 0, 0.22),
+    ("out", [("nikhil  console   -                 12:07", GREY, 0)], None, 0, 0.30),
+    ("out", [G1, YOUSEG, ("             00:00", GREY, 0)], None, 0, 0.34),
+    ("out", [G2, YOUSEG, ("             00:00", GREY, 1)], None, 0, 3.40),
 ]
 
 TYPE = 0.052       # seconds per character
@@ -77,7 +82,7 @@ def render():
     widest = max(((len(t) + 2) if k == "cmd" else sum(len(x) for x, _c2, _f2 in t))
                  for k, t, _c, _s, _d, _f in events)
     # a terminal that is taller than it is wide reads as a phone, not a shell
-    W = max(600, int(PAD_X * 2 + widest * CW + 18))
+    W = max(680, int(PAD_X * 2 + widest * CW + 18))
     H = TOP + rows * LH + 34
 
     body, clips = [], []
