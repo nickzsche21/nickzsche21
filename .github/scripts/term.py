@@ -18,41 +18,44 @@ FS = 14.5
 BG, BAR, EDGE = "#0B0E14", "#141A24", "#222B39"
 GREEN, WHITE, GREY = "#7EE787", "#E6EDF3", "#7D8792"
 CYAN, GOLD, VIOLET = "#79C0FF", "#F2CC60", "#D2A8FF"
+AMBER, RED, DIM = "#E3A008", "#F8514A", "#4A525C"
 
-# (kind, text, colour) — "cmd" types out, "out" prints, "gap" spaces things
+# (kind, text, colour, flicker, hold-after)
 SCRIPT = [
-    ("cmd", "whoami", WHITE),
-    ("out", "nikhil · builder · bangalore, india", GREY),
-    ("gap", "", None),
-    ("cmd", "ls ~/shipping", WHITE),
-    ("out", "vocalclaw/   epfo-next/   cityledger/   quant-review/", CYAN),
-    ("gap", "", None),
-    ("cmd", "cat vocalclaw/what-it-does", WHITE),
-    ("out", "runs an AI agent on a local LLM.", GREY),
-    ("out", "zero API cost. 115 stars and counting.", GOLD),
-    ("gap", "", None),
-    ("cmd", "git log --oneline -1", WHITE),
-    ("out", "9f3e824  still building", VIOLET),
-    ("gap", "", None),
+    ("cmd", "whoami", WHITE, 0, 0.40),
+    ("out", "nikhil", GREY, 0, 0.30),
+    ("gap", "", None, 0, 0),
+    ("cmd", "who", WHITE, 0, 0.45),
+    ("out", "nikhil    console    since tuesday", GREY, 0, 0.34),
+    ("out", "?         ttys001    since ????", AMBER, 1, 1.30),
+    ("gap", "", None, 0, 0),
+    ("cmd", "kill -9 ?", WHITE, 0, 0.70),
+    ("out", "kill: ?: no such process", GREY, 0, 1.05),
+    ("gap", "", None, 0, 0),
+    ("cmd", "ls /dev/thoughts", WHITE, 0, 0.45),
+    ("out", "racing   looping   3am", VIOLET, 0, 1.10),
+    ("gap", "", None, 0, 0),
+    ("cmd", "exit", WHITE, 0, 0.95),
+    ("out", "exit: you don't get to.", RED, 1, 3.00),
 ]
 
 TYPE = 0.052       # seconds per character
 HOLD_CMD = 0.42    # pause after a command lands
 HOLD_OUT = 0.30
-TAIL = 2.6         # blinking prompt before the screen clears
+TAIL = 1.4         # blinking prompt before the screen clears
 
 
 def build():
     t = 0.4
     events = []
-    for kind, text, col in SCRIPT:
+    for kind, text, col, flick, hold in SCRIPT:
         if kind == "gap":
             t += 0.18
-            events.append((kind, text, col, t, 0.0))
+            events.append((kind, text, col, t, 0.0, flick))
             continue
         dur = len(text) * TYPE if kind == "cmd" else 0.0
-        events.append((kind, text, col, t, dur))
-        t += dur + (HOLD_CMD if kind == "cmd" else HOLD_OUT)
+        events.append((kind, text, col, t, dur, flick))
+        t += dur + hold
     total = t + TAIL
     return events, total
 
@@ -65,13 +68,14 @@ def render():
     events, total = build()
     rows = len(events)
     # size the window to its longest line instead of leaving dead space
-    widest = max((len(t) + (2 if k == "cmd" else 0)) for k, t, _c, _s, _d in events)
-    W = int(PAD_X * 2 + widest * CW + 18)
+    widest = max((len(t) + (2 if k == "cmd" else 0)) for k, t, _c, _s, _d, _f in events)
+    # a terminal that is taller than it is wide reads as a phone, not a shell
+    W = max(600, int(PAD_X * 2 + widest * CW + 18))
     H = TOP + rows * LH + 34
 
     body, clips = [], []
     y = TOP
-    for i, (kind, text, col, start, dur) in enumerate(events):
+    for i, (kind, text, col, start, dur, flick) in enumerate(events):
         if kind == "gap":
             y += LH
             continue
@@ -128,27 +132,22 @@ def render():
                    ";".join("%.4f" % k for k in ckt), total,
                    s, (start + dur) / total, total))
         else:
+            inner = ('<text x="%.1f" y="%d" class="m" fill="%s" textLength="%.1f" '
+                     'lengthAdjust="spacing">%s</text>'
+                     % (px, y, col, full, esc(text)))
+            if flick:
+                inner = ('<g>%s<animate attributeName="opacity" '
+                         'values="1;0.15;1;0.55;1;1;0.3;1" dur="2.7s" '
+                         'repeatCount="indefinite" calcMode="discrete"/></g>'
+                         % inner)
             body.append(
                 '<g opacity="0"><animate attributeName="opacity" '
                 'values="0;1;1;0;0" keyTimes="0;%.4f;%.4f;%.4f;1" dur="%.2fs" '
-                'repeatCount="indefinite" calcMode="discrete"/>'
-                '<text x="%.1f" y="%d" class="m" fill="%s" textLength="%.1f" '
-                'lengthAdjust="spacing">%s</text></g>'
-                % (s, clear, clear, total, px, y, col, full, esc(text)))
+                'repeatCount="indefinite" calcMode="discrete"/>%s</g>'
+                % (s, clear, clear, total, inner))
         y += LH
 
-    # the prompt that waits for whatever comes next
-    ps = (events[-1][3] + 0.2) / total
-    tail = ('<g opacity="0"><animate attributeName="opacity" values="0;1;0;0" '
-            'keyTimes="0;%.4f;%.4f;1" dur="%.2fs" repeatCount="indefinite" '
-            'calcMode="discrete"/>'
-            '<text x="%.1f" y="%d" class="m" fill="%s">$</text>'
-            '<rect x="%.1f" y="%d" width="%.1f" height="16" fill="%s">'
-            '<animate attributeName="opacity" values="1;1;0;0" '
-            'keyTimes="0;0.5;0.5;1" dur="1.06s" repeatCount="indefinite" '
-            'calcMode="discrete"/></rect></g>'
-            % (ps, (total - 0.34) / total, total, PAD_X, y, GREEN,
-               PAD_X + 2 * CW, y - 12, CW, WHITE))
+    tail = ""
 
     dots = "".join('<circle cx="%d" cy="21" r="5.5" fill="%s"/>' % (x, c)
                    for x, c in ((26, "#FF5F57"), (46, "#FEBC2E"), (66, "#28C840")))
