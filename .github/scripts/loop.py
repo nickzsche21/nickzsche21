@@ -46,15 +46,15 @@ def tunnel():
             'stroke="%s" stroke-width="0.7" opacity="0">'
             # rushing toward the viewer
             '<animateTransform attributeName="transform" type="scale" '
-            'values="0.02;9.5" dur="%.2fs" begin="%.2fs" repeatCount="indefinite" '
+            'values="0.02;8.4" dur="%.2fs" begin="%.2fs" repeatCount="indefinite" '
             'calcMode="spline" keyTimes="0;1" keySplines="0.45 0 0.9 0.6"/>'
             # and turning as it comes
             '<animateTransform attributeName="transform" type="rotate" '
             'values="0;%d" dur="%.2fs" begin="%.2fs" repeatCount="indefinite" '
             'additive="sum"/>'
             # bright in the middle distance, gone as it passes you
-            '<animate attributeName="opacity" values="0;0.95;0.75;0" '
-            'keyTimes="0;0.28;0.72;1" dur="%.2fs" begin="%.2fs" '
+            '<animate attributeName="opacity" values="0;0.95;0.55;0;0" '
+            'keyTimes="0;0.26;0.6;0.84;1" dur="%.2fs" begin="%.2fs" '
             'repeatCount="indefinite"/>'
             '</rect>'
             % (col, DUR, delay, spin, DUR, delay, DUR, delay))
