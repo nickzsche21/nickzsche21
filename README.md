@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="assets/loop.svg" alt="An endless tunnel" width="100%" />
+<img src="assets/route.svg" alt="Route 1 — a pixel route that never ends" width="100%" />
 
 ### builder, evolving.
 
@@ -20,7 +20,7 @@ Bangalore · India
 
 <br>
 
-<sub>The tunnel above has no bottom. It is drawn once and loops forever —
-no scripts, no scheduled jobs, nothing to keep alive.</sub>
+<sub>Every sprite above is hand-drawn pixel by pixel in code — no images, no sprite rips.
+Two-frame walk cycles, three parallax bands, and two of them can't decide what they are.</sub>
 
 </div>
